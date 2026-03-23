@@ -10,13 +10,16 @@ from PySide6.QtSvg import QSvgRenderer
 
 from modules.snippets.widget import SnippetsWidget
 from modules.editor.widget import EditorWidget
+from modules.pdf_merge.widget import PDFMergeWidget
+
 from core.logger import setup_logger
+from core.snippets_manager import SnippetsManager
+from core.snippets_service import SnippetsService
 
 logger = setup_logger()
 logger.info("Aplicación iniciada")
 
 
-# 🎨 SISTEMA DE TEMA
 DARK_THEME = {
     "bg_main": "#0f0f0f",
     "bg_sidebar": "#151515",
@@ -45,8 +48,10 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("DGARHC Toolbox")
 
-        # 🔥 CACHE DE ICONOS
         self.icon_cache = {}
+
+        self.manager = SnippetsManager()
+        self.service = SnippetsService(self.manager)
 
         # ----- CENTRAL -----
         self.central_widget = QWidget()
@@ -71,7 +76,7 @@ class MainWindow(QMainWindow):
         sidebar_widget.setLayout(sidebar_layout)
         sidebar_widget.setFixedWidth(self.sidebar_width)
 
-        # 🟢🟡🔴 BOTONES
+        # BOTONES SISTEMA
         window_controls = QHBoxLayout()
         window_controls.setSpacing(8)
         window_controls.setAlignment(Qt.AlignCenter)
@@ -100,16 +105,19 @@ class MainWindow(QMainWindow):
 
         sidebar_layout.addLayout(window_controls)
 
-        # ----- ICONOS -----
+        # ----- BOTONES MÓDULOS -----
         self.btn_snippets = QPushButton()
         self.btn_editor = QPushButton()
+        self.btn_pdf = QPushButton()
 
         self.icon_snippets_path = "assets/icons/file-text.svg"
         self.icon_editor_path = "assets/icons/pen-line.svg"
+        self.icon_pdf_path = "assets/icons/file-stack.svg"  # podés cambiar después
 
         for btn, tooltip in [
             (self.btn_snippets, "Snippets"),
             (self.btn_editor, "Editor"),
+            (self.btn_pdf, "PDF Merge"),
         ]:
             btn.setFixedSize(48, 48)
             btn.setIconSize(QSize(24, 24))
@@ -122,15 +130,18 @@ class MainWindow(QMainWindow):
         # ----- STACK -----
         self.stack = QStackedWidget()
 
-        self.snippets_widget = SnippetsWidget(self.theme)
-        self.editor_widget = EditorWidget(self.theme)
+        self.snippets_widget = SnippetsWidget(self.theme, self.service)
+        self.editor_widget = EditorWidget(self.theme, self.service)
+        self.pdf_widget = PDFMergeWidget(self.theme)
 
-        self.stack.addWidget(self.snippets_widget)
-        self.stack.addWidget(self.editor_widget)
+        self.stack.addWidget(self.snippets_widget)  # index 0
+        self.stack.addWidget(self.editor_widget)    # index 1
+        self.stack.addWidget(self.pdf_widget)       # index 2
 
         # ----- CONEXIONES -----
         self.btn_snippets.clicked.connect(lambda: self.toggle_module(0))
         self.btn_editor.clicked.connect(lambda: self.toggle_module(1))
+        self.btn_pdf.clicked.connect(lambda: self.toggle_module(2))
 
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
@@ -146,7 +157,7 @@ class MainWindow(QMainWindow):
 
         self.update_buttons()
 
-    # --------- ICONOS (CACHEADOS) ---------
+    # --------- ICONOS ---------
 
     def get_icon(self, path, color):
         key = f"{path}_{color}"
@@ -216,7 +227,8 @@ class MainWindow(QMainWindow):
     def update_buttons(self):
         for btn, idx, path in [
             (self.btn_snippets, 0, self.icon_snippets_path),
-            (self.btn_editor, 1, self.icon_editor_path)
+            (self.btn_editor, 1, self.icon_editor_path),
+            (self.btn_pdf, 2, self.icon_pdf_path),
         ]:
             if self.current_index == idx:
                 btn.setStyleSheet(f"""

@@ -7,8 +7,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QTextCharFormat, QFont, QColor
 
-from core.snippets_manager import SnippetsManager
-
 
 # =====================
 # ✍️ EDITOR TEXTO
@@ -81,11 +79,11 @@ class CustomTextEdit(QTextEdit):
 # 📦 WIDGET PRINCIPAL
 # =====================
 class EditorWidget(QWidget):
-    def __init__(self, theme):
+    def __init__(self, theme, service):
         super().__init__()
 
         self.theme = theme
-        self.manager = SnippetsManager()
+        self.service = service
 
         self.selected_id = None
         self.mode = "idle"
@@ -103,6 +101,19 @@ class EditorWidget(QWidget):
         # =====================
         self.title = QLabel("Editor de Snippets")
         layout.addWidget(self.title)
+
+        # 🔍 BUSCADOR
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Buscar...")
+        self.search_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {self.theme["bg_sidebar"]};
+                border: 1px solid {self.theme["bg_hover"]};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+        """)
+        layout.addWidget(self.search_input)
 
         # =====================
         self.tree = QTreeWidget()
@@ -193,8 +204,38 @@ class EditorWidget(QWidget):
         self.btn_save.clicked.connect(self.save_snippet)
         self.btn_cancel.clicked.connect(self.cancel_edit)
 
+        self.search_input.textChanged.connect(self.apply_search)
+
         self.load_snippets()
         self.update_ui()
+
+    # =====================
+    def apply_search(self):
+        text = self.search_input.text().strip()
+
+        if not text:
+            self.load_snippets()
+            return
+
+        results = self.service.search(text)
+
+        self.tree.clear()
+
+        groups = {}
+        for s in results:
+            groups.setdefault(s["group"], []).append(s)
+
+        for group_name in sorted(groups.keys()):
+            group_item = QTreeWidgetItem([group_name])
+            self.tree.addTopLevelItem(group_item)
+
+            for s in groups[group_name]:
+                child = QTreeWidgetItem([s["title"]])
+                child.setData(0, Qt.UserRole, s)
+                group_item.addChild(child)
+
+        # 🔥 CLAVE UX
+        self.tree.expandAll()
 
     # =====================
     def update_ui(self):
@@ -232,7 +273,7 @@ class EditorWidget(QWidget):
     # =====================
     def load_snippets(self):
         self.tree.clear()
-        snippets = self.manager.get_all()
+        snippets = self.service.get_all()
 
         groups = {}
         for s in snippets:
@@ -285,14 +326,23 @@ class EditorWidget(QWidget):
         title = self.input_title.text()
         content = self.input_content.toHtml()
 
-        if self.selected_id:
-            self.manager.update(self.selected_id, group=group, title=title, content=content)
-        else:
-            self.manager.add(group, title, content)
+        try:
+            if self.selected_id:
+                self.service.update(
+                    self.selected_id,
+                    group=group,
+                    title=title,
+                    content=content
+                )
+            else:
+                self.service.add(group, title, content)
 
-        self.load_snippets()
-        self.mode = "idle"
-        self.update_ui()
+            self.load_snippets()
+            self.mode = "idle"
+            self.update_ui()
+
+        except Exception as e:
+            print("Error:", e)
 
     def cancel_edit(self):
         self.mode = "idle"
@@ -302,8 +352,18 @@ class EditorWidget(QWidget):
         if not self.selected_id:
             return
 
-        self.manager.delete(self.selected_id)
-        self.load_snippets()
+        try:
+            self.service.delete(self.selected_id)
 
-        self.mode = "idle"
-        self.update_ui()
+            # 🔥 limpiar formulario
+            self.selected_id = None
+            self.input_group.clear()
+            self.input_title.clear()
+            self.input_content.clear()
+
+            self.load_snippets()
+            self.mode = "idle"
+            self.update_ui()
+
+        except Exception as e:
+            print("Error:", e)
