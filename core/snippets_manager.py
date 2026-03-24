@@ -1,14 +1,20 @@
-# core/snippets_manager.py
-
 import json
 import uuid
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
 
 class SnippetsManager:
     def __init__(self, filepath="data/snippets.json"):
-        self.filepath = Path(filepath)
+        # Detectar si corre como .exe o en desarrollo
+        if getattr(sys, 'frozen', False):
+            base_path = Path(sys.executable).parent
+        else:
+            base_path = Path(__file__).resolve().parent.parent
+
+        self.filepath = base_path / filepath
         self.snippets = []
         self._ensure_file()
         self.load()
