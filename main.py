@@ -14,6 +14,7 @@ from modules.snippets.widget import SnippetsWidget
 from modules.editor.widget import EditorWidget
 from modules.pdf_merge.widget import PDFMergeWidget
 from modules.settings.widget import SettingsWidget
+from modules.recibos.widget import RecibosWidget  # 🔥 NUEVO
 
 from core.snippets_manager import SnippetsManager
 from core.snippets_service import SnippetsService
@@ -113,13 +114,15 @@ class MainWindow(QMainWindow):
         self.btn_editor = QPushButton()
         self.btn_pdf = QPushButton()
         self.btn_settings = QPushButton()
+        self.btn_recibos = QPushButton()  # 🔥 NUEVO
 
         self.icon_snippets_path = "assets/icons/file-text.svg"
         self.icon_editor_path = "assets/icons/pen-line.svg"
         self.icon_pdf_path = "assets/icons/file-stack.svg"
         self.icon_settings_path = "assets/icons/settings.svg"
+        self.icon_recibos_path = "assets/icons/download.svg"  # 🔥 NUEVO
 
-        for btn in [self.btn_snippets, self.btn_editor, self.btn_pdf]:
+        for btn in [self.btn_snippets, self.btn_editor, self.btn_pdf, self.btn_recibos]:
             btn.setFixedSize(48, 48)
             btn.setIconSize(QSize(24, 24))
             btn.setCursor(Qt.PointingHandCursor)
@@ -139,11 +142,13 @@ class MainWindow(QMainWindow):
         self.editor = EditorWidget(self.theme, self.service)
         self.pdf = PDFMergeWidget(self.theme)
         self.settings = SettingsWidget(self)
+        self.recibos = RecibosWidget(self.theme)  # 🔥 NUEVO
 
-        self.stack.addWidget(self.snippets)
-        self.stack.addWidget(self.editor)
-        self.stack.addWidget(self.pdf)
-        self.stack.addWidget(self.settings)
+        self.stack.addWidget(self.snippets)   # 0
+        self.stack.addWidget(self.editor)     # 1
+        self.stack.addWidget(self.pdf)        # 2
+        self.stack.addWidget(self.settings)   # 3
+        self.stack.addWidget(self.recibos)    # 4
 
         self.main_layout.addWidget(self.sidebar)
         self.main_layout.addWidget(self.stack)
@@ -156,12 +161,12 @@ class MainWindow(QMainWindow):
         self.btn_editor.clicked.connect(lambda: self.toggle_module(1))
         self.btn_pdf.clicked.connect(lambda: self.toggle_module(2))
         self.btn_settings.clicked.connect(lambda: self.toggle_module(3))
+        self.btn_recibos.clicked.connect(lambda: self.toggle_module(4))  # 🔥
 
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
         self.btn_max.clicked.connect(self.toggle_maximize)
 
-        # DRAG FIX
         self.installEventFilter(self)
 
         self.apply_theme()
@@ -191,7 +196,6 @@ class MainWindow(QMainWindow):
     def apply_theme(self):
         self.theme["accent"] = self.accent_color
 
-        # BASE
         self.central_widget.setStyleSheet(f"""
             background-color: {self.theme["bg_main"]};
             color: {self.theme["text"]};
@@ -201,60 +205,7 @@ class MainWindow(QMainWindow):
             background-color: {self.theme["bg_sidebar"]};
         """)
 
-        # 🔥 SCROLLBAR GLOBAL
-        self.setStyleSheet(f"""
-            QScrollBar:vertical {{
-                background: transparent;
-                width: 6px;
-                margin: 4px;
-            }}
-
-            QScrollBar::handle:vertical {{
-                background: {self.theme["bg_active"]};
-                border-radius: 3px;
-            }}
-
-            QScrollBar::handle:vertical:hover {{
-                background: {self.theme["accent"]};
-            }}
-
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-
-            QScrollBar::add-page:vertical,
-            QScrollBar::sub-page:vertical {{
-                background: none;
-            }}
-
-            QScrollBar:horizontal {{
-                background: transparent;
-                height: 6px;
-                margin: 4px;
-            }}
-
-            QScrollBar::handle:horizontal {{
-                background: {self.theme["bg_active"]};
-                border-radius: 3px;
-            }}
-
-            QScrollBar::handle:horizontal:hover {{
-                background: {self.theme["accent"]};
-            }}
-
-            QScrollBar::add-line:horizontal,
-            QScrollBar::sub-line:horizontal {{
-                width: 0px;
-            }}
-
-            QScrollBar::add-page:horizontal,
-            QScrollBar::sub-page:horizontal {{
-                background: none;
-            }}
-        """)
-
-        for widget in [self.snippets, self.editor, self.pdf, self.settings]:
+        for widget in [self.snippets, self.editor, self.pdf, self.settings, self.recibos]:
             if hasattr(widget, "apply_theme"):
                 widget.apply_theme(self.theme)
 
@@ -294,7 +245,7 @@ class MainWindow(QMainWindow):
 
         self.apply_theme()
 
-        for widget in [self.snippets, self.editor, self.pdf, self.settings]:
+        for widget in [self.snippets, self.editor, self.pdf, self.settings, self.recibos]:
             widget.update()
             widget.repaint()
 
@@ -353,6 +304,7 @@ class MainWindow(QMainWindow):
             (self.btn_editor, 1, self.icon_editor_path),
             (self.btn_pdf, 2, self.icon_pdf_path),
             (self.btn_settings, 3, self.icon_settings_path),
+            (self.btn_recibos, 4, self.icon_recibos_path),  # 🔥
         ]:
             if self.current_index == idx:
                 btn.setStyleSheet(f"""
