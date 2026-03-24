@@ -17,12 +17,15 @@ class CustomTextEdit(QTextEdit):
         self.theme = theme
 
         self.setPlaceholderText("Contenido")
+        self.apply_theme(theme)
 
+    def apply_theme(self, theme):
+        self.theme = theme
         self.setStyleSheet(f"""
             QTextEdit {{
-                background-color: {self.theme["bg_sidebar"]};
-                color: {self.theme["text"]};
-                border: 1px solid {self.theme["bg_hover"]};
+                background-color: {theme["bg_sidebar"]};
+                color: {theme["text"]};
+                border: 1px solid {theme["bg_hover"]};
                 border-radius: 6px;
                 padding: 6px;
             }}
@@ -88,13 +91,6 @@ class EditorWidget(QWidget):
         self.selected_id = None
         self.mode = "idle"
 
-        self.setStyleSheet(f"""
-            QWidget {{
-                background-color: {self.theme["bg_main"]};
-                color: {self.theme["text"]};
-            }}
-        """)
-
         layout = QVBoxLayout()
         self.setLayout(layout)
 
@@ -105,31 +101,11 @@ class EditorWidget(QWidget):
         # 🔍 BUSCADOR
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar...")
-        self.search_input.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {self.theme["bg_sidebar"]};
-                border: 1px solid {self.theme["bg_hover"]};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-        """)
         layout.addWidget(self.search_input)
 
         # =====================
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-
-        self.tree.setStyleSheet(f"""
-            QTreeWidget {{
-                background-color: {self.theme["bg_sidebar"]};
-                border: 1px solid {self.theme["bg_hover"]};
-                border-radius: 6px;
-            }}
-            QTreeWidget::item:selected {{
-                background-color: {self.theme["bg_active"]};
-            }}
-        """)
-
         layout.addWidget(self.tree)
 
         # =====================
@@ -144,16 +120,6 @@ class EditorWidget(QWidget):
         self.input_title.setPlaceholderText("Título")
 
         self.input_content = CustomTextEdit(self.theme)
-
-        for field in (self.input_group, self.input_title):
-            field.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: {self.theme["bg_sidebar"]};
-                    border: 1px solid {self.theme["bg_hover"]};
-                    border-radius: 6px;
-                    padding: 4px;
-                }}
-            """)
 
         self.form_layout.addWidget(self.input_group)
         self.form_layout.addWidget(self.input_title)
@@ -170,21 +136,7 @@ class EditorWidget(QWidget):
         self.btn_save = QPushButton("Guardar")
         self.btn_cancel = QPushButton("Cancelar")
 
-        button_style = f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {self.theme["text"]};
-                border: 1px solid {self.theme["bg_hover"]};
-                border-radius: 6px;
-                padding: 3px 8px;
-            }}
-            QPushButton:hover {{
-                background-color: {self.theme["bg_hover"]};
-            }}
-        """
-
         for btn in [self.btn_new, self.btn_edit, self.btn_delete, self.btn_save, self.btn_cancel]:
-            btn.setStyleSheet(button_style)
             btn.setMaximumWidth(90)
 
         self.btn_layout.addWidget(self.btn_new)
@@ -208,6 +160,52 @@ class EditorWidget(QWidget):
 
         self.load_snippets()
         self.update_ui()
+
+        # 🔥 aplicar theme inicial
+        self.apply_theme(self.theme)
+
+    # =====================
+    # 🔥 THEME DINÁMICO
+    def apply_theme(self, theme):
+        self.theme = theme
+
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme["bg_main"]};
+                color: {theme["text"]};
+            }}
+
+            QLineEdit {{
+                background-color: {theme["bg_sidebar"]};
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+
+            QTreeWidget {{
+                background-color: {theme["bg_sidebar"]};
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+            }}
+
+            QTreeWidget::item:selected {{
+                background-color: {theme["bg_active"]};
+            }}
+
+            QPushButton {{
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+                padding: 3px 8px;
+            }}
+
+            QPushButton:hover {{
+                background-color: {theme["bg_hover"]};
+            }}
+        """)
+
+        # 🔥 actualizar editor interno
+        if hasattr(self, "input_content"):
+            self.input_content.apply_theme(theme)
 
     # =====================
     def apply_search(self):
@@ -234,7 +232,6 @@ class EditorWidget(QWidget):
                 child.setData(0, Qt.UserRole, s)
                 group_item.addChild(child)
 
-        # 🔥 CLAVE UX
         self.tree.expandAll()
 
     # =====================
@@ -355,7 +352,6 @@ class EditorWidget(QWidget):
         try:
             self.service.delete(self.selected_id)
 
-            # 🔥 limpiar formulario
             self.selected_id = None
             self.input_group.clear()
             self.input_title.clear()

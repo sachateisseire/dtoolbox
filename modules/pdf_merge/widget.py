@@ -139,18 +139,11 @@ class PDFMergeWidget(QWidget):
         self.theme = theme
         self.model = PDFTableModel()
 
-        self.setStyleSheet(f"""
-            QWidget {{
-                background-color: {self.theme["bg_main"]};
-                color: {self.theme["text"]};
-            }}
-        """)
-
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        title = QLabel("Merge de PDFs")
-        layout.addWidget(title)
+        self.title = QLabel("Merge de PDFs")
+        layout.addWidget(self.title)
 
         # =====================
         self.table = QTableView()
@@ -164,21 +157,9 @@ class PDFMergeWidget(QWidget):
         self.table.setSelectionBehavior(QTableView.SelectRows)
         self.table.setSelectionMode(QTableView.SingleSelection)
 
-        self.table.setStyleSheet(f"""
-            QTableView {{
-                background-color: {self.theme["bg_sidebar"]};
-                border: 1px solid {self.theme["bg_hover"]};
-                border-radius: 6px;
-            }}
-            QTableView::item:selected {{
-                background-color: {self.theme["bg_active"]};
-            }}
-        """)
-
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-
         header.sectionClicked.connect(self.on_header_click)
 
         layout.addWidget(self.table)
@@ -190,21 +171,6 @@ class PDFMergeWidget(QWidget):
         self.btn_remove = QPushButton("Eliminar")
         self.btn_clear = QPushButton("Eliminar todo")
         self.btn_merge = QPushButton("Mergear")
-
-        style = f"""
-            QPushButton {{
-                border: 1px solid {self.theme["bg_hover"]};
-                border-radius: 6px;
-                padding: 3px 8px;
-                min-width: 90px;
-            }}
-            QPushButton:hover {{
-                background-color: {self.theme["bg_hover"]};
-            }}
-        """
-
-        for b in [self.btn_add, self.btn_remove, self.btn_clear, self.btn_merge]:
-            b.setStyleSheet(style)
 
         btn_layout.addWidget(self.btn_add)
         btn_layout.addWidget(self.btn_remove)
@@ -218,6 +184,42 @@ class PDFMergeWidget(QWidget):
         self.btn_remove.clicked.connect(self.remove_selected)
         self.btn_clear.clicked.connect(self.model.clear)
         self.btn_merge.clicked.connect(self.merge_pdfs)
+
+        # 🔥 aplicar theme inicial
+        self.apply_theme(self.theme)
+
+    # =====================
+    # 🔥 THEME DINÁMICO
+    def apply_theme(self, theme):
+        self.theme = theme
+
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme["bg_main"]};
+                color: {theme["text"]};
+            }}
+
+            QTableView {{
+                background-color: {theme["bg_sidebar"]};
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+            }}
+
+            QTableView::item:selected {{
+                background-color: {theme["bg_active"]};
+            }}
+
+            QPushButton {{
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+                padding: 3px 8px;
+                min-width: 90px;
+            }}
+
+            QPushButton:hover {{
+                background-color: {theme["bg_hover"]};
+            }}
+        """)
 
     # =====================
     def add_files(self):

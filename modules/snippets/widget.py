@@ -17,12 +17,15 @@ class CustomTextEdit(QTextEdit):
         self.theme = theme
 
         self.setPlaceholderText("Pegá y editá texto aquí...")
+        self.apply_theme(theme)
 
+    def apply_theme(self, theme):
+        self.theme = theme
         self.setStyleSheet(f"""
             QTextEdit {{
-                background-color: {self.theme["bg_sidebar"]};
-                color: {self.theme["text"]};
-                border: 1px solid {self.theme["bg_hover"]};
+                background-color: {theme["bg_sidebar"]};
+                color: {theme["text"]};
+                border: 1px solid {theme["bg_hover"]};
                 border-radius: 6px;
                 padding: 8px;
             }}
@@ -42,13 +45,6 @@ class SnippetsWidget(QWidget):
         self.theme = theme
         self.service = service
 
-        self.setStyleSheet(f"""
-            QWidget {{
-                background-color: {self.theme["bg_main"]};
-                color: {self.theme["text"]};
-            }}
-        """)
-
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
 
@@ -59,14 +55,6 @@ class SnippetsWidget(QWidget):
         # 🔍 BUSCADOR
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Buscar...")
-        self.search_input.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {self.theme["bg_sidebar"]};
-                border: 1px solid {self.theme["bg_hover"]};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-        """)
         main_layout.addWidget(self.search_input)
 
         # =====================
@@ -75,19 +63,6 @@ class SnippetsWidget(QWidget):
         # =====================
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-
-        self.tree.setStyleSheet(f"""
-            QTreeWidget {{
-                background-color: {self.theme["bg_sidebar"]};
-                border: 1px solid {self.theme["bg_hover"]};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-            QTreeWidget::item:selected {{
-                background-color: {self.theme["bg_active"]};
-            }}
-        """)
-
         splitter.addWidget(self.tree)
 
         # =====================
@@ -128,6 +103,53 @@ class SnippetsWidget(QWidget):
 
         self.load_snippets()
 
+        # 🔥 aplicar theme inicial
+        self.apply_theme(self.theme)
+
+    # =====================
+    # 🔥 THEME DINÁMICO
+    def apply_theme(self, theme):
+        self.theme = theme
+
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme["bg_main"]};
+                color: {theme["text"]};
+            }}
+
+            QLineEdit {{
+                background-color: {theme["bg_sidebar"]};
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+
+            QTreeWidget {{
+                background-color: {theme["bg_sidebar"]};
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+
+            QTreeWidget::item:selected {{
+                background-color: {theme["bg_active"]};
+            }}
+
+            QPushButton {{
+                border: 1px solid {theme["bg_hover"]};
+                border-radius: 6px;
+                padding: 4px 8px;
+            }}
+
+            QPushButton:hover {{
+                background-color: {theme["bg_hover"]};
+            }}
+        """)
+
+        # 🔥 actualizar editor interno
+        if hasattr(self, "editor"):
+            self.editor.apply_theme(theme)
+
     # =====================
     def apply_search(self):
         text = self.search_input.text().strip()
@@ -153,7 +175,6 @@ class SnippetsWidget(QWidget):
                 child.setData(0, Qt.UserRole, s)
                 group_item.addChild(child)
 
-        # 🔥 CLAVE UX
         self.tree.expandAll()
 
     # =====================
