@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
-    QPushButton, QColorDialog, QHBoxLayout
+    QPushButton, QColorDialog, QHBoxLayout, QFrame
 )
 from PySide6.QtCore import Qt
 
@@ -11,58 +11,213 @@ class SettingsWidget(QWidget):
 
         self.app = app_ref
 
-        layout = QVBoxLayout()
-        self.setLayout(layout)
+        self.main_layout = QVBoxLayout()
+        self.main_layout.setContentsMargins(24, 24, 24, 24)
+        self.main_layout.setSpacing(24)
+        self.setLayout(self.main_layout)
 
         # =====================
         title = QLabel("Configuración")
-        layout.addWidget(title)
+        title.setObjectName("title")
+        self.main_layout.addWidget(title)
 
         # =====================
-        # 🌗 TEMA
-        self.btn_theme = QPushButton("Cambiar tema (Dark / Light)")
-        self.btn_theme.clicked.connect(self.toggle_theme)
-        layout.addWidget(self.btn_theme)
+        self.appearance_card = self.create_card("Apariencia")
+        self.main_layout.addWidget(self.appearance_card)
 
-        # =====================
-        # 🎨 COLOR
-        self.btn_color = QPushButton("Cambiar color principal")
+        app_layout = self.appearance_card.layout()
+
+        # Tema
+        theme_label = QLabel("Tema")
+        theme_label.setObjectName("sectionLabel")
+        app_layout.addWidget(theme_label)
+
+        theme_row = QHBoxLayout()
+        theme_row.setSpacing(10)
+
+        self.btn_dark = QPushButton("🌙 Dark")
+        self.btn_light = QPushButton("☀ Light")
+
+        for btn, mode in [
+            (self.btn_dark, "dark"),
+            (self.btn_light, "light")
+        ]:
+            btn.setMinimumHeight(36)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda _, m=mode: self.set_theme(m))
+            theme_row.addWidget(btn)
+
+        app_layout.addLayout(theme_row)
+
+        # Color
+        color_label = QLabel("Color principal")
+        color_label.setObjectName("sectionLabel")
+        app_layout.addWidget(color_label)
+
+        color_row = QHBoxLayout()
+        color_row.setSpacing(10)
+
+        self.color_preview = QLabel()
+        self.color_preview.setFixedSize(50, 24)
+        self.color_preview.setObjectName("colorPreview")
+
+        self.btn_color = QPushButton("Cambiar")
+        self.btn_color.setMinimumHeight(32)
         self.btn_color.clicked.connect(self.change_color)
-        layout.addWidget(self.btn_color)
+
+        color_row.addWidget(self.color_preview)
+        color_row.addWidget(self.btn_color)
+        color_row.addStretch()
+
+        app_layout.addLayout(color_row)
 
         # =====================
-        # 🔠 TAMAÑO TEXTO (3 niveles)
-        self.label_font = QLabel("Tamaño de texto")
-        layout.addWidget(self.label_font)
+        self.font_card = self.create_card("Tipografía")
+        self.main_layout.addWidget(self.font_card)
+
+        font_layout = self.font_card.layout()
+
+        font_label = QLabel("Tamaño de texto")
+        font_label.setObjectName("sectionLabel")
+        font_layout.addWidget(font_label)
 
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
 
-        self.btn_font_small = QPushButton("1")
-        self.btn_font_medium = QPushButton("2")
-        self.btn_font_large = QPushButton("3")
+        self.btn_font_small = QPushButton("S")
+        self.btn_font_medium = QPushButton("M")
+        self.btn_font_large = QPushButton("L")
 
-        for btn, level in [
-            (self.btn_font_small, 1),
-            (self.btn_font_medium, 2),
-            (self.btn_font_large, 3),
-        ]:
-            btn.setFixedWidth(40)
-            btn.clicked.connect(lambda _, l=level: self.change_font_size(l))
+        self.font_buttons = {
+            1: self.btn_font_small,
+            2: self.btn_font_medium,
+            3: self.btn_font_large
+        }
+
+        for btn in self.font_buttons.values():
+            btn.setFixedSize(40, 40)
+            btn.setCursor(Qt.PointingHandCursor)
             btn_layout.addWidget(btn)
 
-        layout.addLayout(btn_layout)
+        self.btn_font_small.clicked.connect(lambda: self.change_font_size(1))
+        self.btn_font_medium.clicked.connect(lambda: self.change_font_size(2))
+        self.btn_font_large.clicked.connect(lambda: self.change_font_size(3))
 
-        layout.addStretch()
+        font_layout.addLayout(btn_layout)
+
+        self.main_layout.addStretch()
+
+        self.update_ui()
 
     # =====================
-    def toggle_theme(self):
-        self.app.toggle_theme()
+    def create_card(self, title_text):
+        card = QFrame()
+        card.setObjectName("card")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+        card.setLayout(layout)
+
+        title = QLabel(title_text)
+        title.setObjectName("cardTitle")
+        layout.addWidget(title)
+
+        return card
+
+    # =====================
+    def apply_theme(self, theme):
+        self.setStyleSheet(f"""
+            QWidget {{
+                color: {theme["text"]};
+            }}
+
+            QLabel {{
+                background: transparent;
+            }}
+
+            QLabel#title {{
+                font-size: 18px;
+                font-weight: bold;
+            }}
+
+            QLabel#cardTitle {{
+                font-size: 14px;
+                font-weight: bold;
+            }}
+
+            QLabel#sectionLabel {{
+                font-size: 12px;
+                color: {theme["text_muted"]};
+            }}
+
+            QFrame#card {{
+                background-color: {theme["bg_sidebar"]};
+                border-radius: 12px;
+            }}
+
+            QPushButton {{
+                border-radius: 8px;
+                padding: 6px;
+            }}
+
+            QPushButton:hover {{
+                background-color: {theme["bg_hover"]};
+            }}
+
+            QLabel#colorPreview {{
+                border-radius: 6px;
+            }}
+        """)
+
+        self.update_ui()
+
+    # =====================
+    def update_ui(self):
+        theme = self.app.theme
+
+        self.color_preview.setStyleSheet(f"""
+            background-color: {self.app.accent_color};
+            border-radius: 6px;
+        """)
+
+        # Tema
+        for btn, mode in [
+            (self.btn_dark, "dark"),
+            (self.btn_light, "light")
+        ]:
+            if self.app.theme_mode == mode:
+                btn.setStyleSheet(f"""
+                    background-color: {theme["bg_active"]};
+                    border: 2px solid {theme["accent"]};
+                    font-weight: bold;
+                """)
+            else:
+                btn.setStyleSheet("")
+
+        # Font
+        for level, btn in self.font_buttons.items():
+            if level == self.app.current_font_level:
+                btn.setStyleSheet(f"""
+                    background-color: {theme["bg_active"]};
+                    border: 2px solid {theme["accent"]};
+                    font-weight: bold;
+                """)
+            else:
+                btn.setStyleSheet("")
+
+    # =====================
+    def set_theme(self, mode):
+        if self.app.theme_mode != mode:
+            self.app.toggle_theme()
+        self.update_ui()
 
     def change_color(self):
         color = QColorDialog.getColor()
-
         if color.isValid():
             self.app.set_accent_color(color.name())
+            self.update_ui()
 
     def change_font_size(self, level):
         self.app.set_font_size(level)
+        self.update_ui()

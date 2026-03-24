@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout,
     QPushButton, QStackedWidget
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QEvent
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor
 from PySide6.QtSvg import QSvgRenderer
 
@@ -47,7 +47,10 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
 
         self.theme_mode = "dark"
+        self.accent_color = "#3b82f6"
+
         self.theme = DARK_THEME.copy()
+        self.theme["accent"] = self.accent_color
 
         self.sidebar_width = 80
         self.module_width = 700
@@ -55,13 +58,14 @@ class MainWindow(QMainWindow):
         self.current_index = None
         self.drag_pos = None
 
-        self.icon_cache = {}
-
         self.manager = SnippetsManager()
         self.service = SnippetsService(self.manager)
 
+        app = QApplication.instance()
+        self.base_font_size = app.font().pointSize()
+        self.current_font_level = 1
+
         # =====================
-        # CENTRAL
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
@@ -70,7 +74,6 @@ class MainWindow(QMainWindow):
         self.central_widget.setLayout(self.main_layout)
 
         # =====================
-        # SIDEBAR
         self.sidebar = QWidget()
         self.sidebar.setFixedWidth(self.sidebar_width)
 
@@ -79,7 +82,7 @@ class MainWindow(QMainWindow):
         sidebar_layout.setSpacing(12)
         self.sidebar.setLayout(sidebar_layout)
 
-        # 🔴🟡🟢 BOTONES SISTEMA
+        # CONTROLES
         window_controls = QHBoxLayout()
         window_controls.setSpacing(8)
         window_controls.setAlignment(Qt.AlignCenter)
@@ -100,16 +103,12 @@ class MainWindow(QMainWindow):
                     border-radius: 6px;
                     border: none;
                 }}
-                QPushButton:hover {{
-                    opacity: 0.8;
-                }}
             """)
             window_controls.addWidget(btn)
 
         sidebar_layout.addLayout(window_controls)
 
         # =====================
-        # BOTONES
         self.btn_snippets = QPushButton()
         self.btn_editor = QPushButton()
         self.btn_pdf = QPushButton()
@@ -120,26 +119,20 @@ class MainWindow(QMainWindow):
         self.icon_pdf_path = "assets/icons/file-stack.svg"
         self.icon_settings_path = "assets/icons/settings.svg"
 
-        for btn, tip in [
-            (self.btn_snippets, "Snippets"),
-            (self.btn_editor, "Editor"),
-            (self.btn_pdf, "PDF Merge"),
-        ]:
+        for btn in [self.btn_snippets, self.btn_editor, self.btn_pdf]:
             btn.setFixedSize(48, 48)
             btn.setIconSize(QSize(24, 24))
             btn.setCursor(Qt.PointingHandCursor)
-            btn.setToolTip(tip)
             sidebar_layout.addWidget(btn, alignment=Qt.AlignCenter)
 
         sidebar_layout.addStretch()
 
         self.btn_settings.setFixedSize(48, 48)
         self.btn_settings.setIconSize(QSize(24, 24))
-        self.btn_settings.setToolTip("Configuración")
+        self.btn_settings.setCursor(Qt.PointingHandCursor)
         sidebar_layout.addWidget(self.btn_settings, alignment=Qt.AlignCenter)
 
         # =====================
-        # STACK
         self.stack = QStackedWidget()
 
         self.snippets = SnippetsWidget(self.theme, self.service)
@@ -159,7 +152,6 @@ class MainWindow(QMainWindow):
         self.set_window_width(self.sidebar_width)
 
         # =====================
-        # CONEXIONES
         self.btn_snippets.clicked.connect(lambda: self.toggle_module(0))
         self.btn_editor.clicked.connect(lambda: self.toggle_module(1))
         self.btn_pdf.clicked.connect(lambda: self.toggle_module(2))
@@ -169,40 +161,37 @@ class MainWindow(QMainWindow):
         self.btn_min.clicked.connect(self.showMinimized)
         self.btn_max.clicked.connect(self.toggle_maximize)
 
-        # =====================
+        # DRAG FIX
+        self.installEventFilter(self)
+
         self.apply_theme()
         self.update_buttons()
 
     # =====================
-    def get_icon(self, path, color):
-        if not os.path.exists(path):
-            return QIcon()
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.MouseButtonPress:
+            if event.button() == Qt.LeftButton:
+                pos = event.globalPosition().toPoint()
+                local = self.mapFromGlobal(pos)
 
-        try:
-            renderer = QSvgRenderer(path)
-            if not renderer.isValid():
-                return QIcon()
+                if local.x() <= self.sidebar_width or local.y() <= 40:
+                    self.drag_pos = pos - self.frameGeometry().topLeft()
 
-            pixmap = QPixmap(24, 24)
-            pixmap.fill(Qt.transparent)
+        elif event.type() == QEvent.MouseMove:
+            if event.buttons() == Qt.LeftButton and self.drag_pos:
+                pos = event.globalPosition().toPoint()
+                self.move(pos - self.drag_pos)
 
-            painter = QPainter(pixmap)
-            renderer.render(painter)
+        elif event.type() == QEvent.MouseButtonRelease:
+            self.drag_pos = None
 
-            if self.theme_mode == "light":
-                color = "#000000"
-
-            painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-            painter.fillRect(pixmap.rect(), QColor(color))
-            painter.end()
-
-            return QIcon(pixmap)
-
-        except:
-            return QIcon()
+        return super().eventFilter(obj, event)
 
     # =====================
     def apply_theme(self):
+        self.theme["accent"] = self.accent_color
+
+        # BASE
         self.central_widget.setStyleSheet(f"""
             background-color: {self.theme["bg_main"]};
             color: {self.theme["text"]};
@@ -212,7 +201,60 @@ class MainWindow(QMainWindow):
             background-color: {self.theme["bg_sidebar"]};
         """)
 
-        for widget in [self.snippets, self.editor, self.pdf]:
+        # 🔥 SCROLLBAR GLOBAL
+        self.setStyleSheet(f"""
+            QScrollBar:vertical {{
+                background: transparent;
+                width: 6px;
+                margin: 4px;
+            }}
+
+            QScrollBar::handle:vertical {{
+                background: {self.theme["bg_active"]};
+                border-radius: 3px;
+            }}
+
+            QScrollBar::handle:vertical:hover {{
+                background: {self.theme["accent"]};
+            }}
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+
+            QScrollBar:horizontal {{
+                background: transparent;
+                height: 6px;
+                margin: 4px;
+            }}
+
+            QScrollBar::handle:horizontal {{
+                background: {self.theme["bg_active"]};
+                border-radius: 3px;
+            }}
+
+            QScrollBar::handle:horizontal:hover {{
+                background: {self.theme["accent"]};
+            }}
+
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {{
+                width: 0px;
+            }}
+
+            QScrollBar::add-page:horizontal,
+            QScrollBar::sub-page:horizontal {{
+                background: none;
+            }}
+        """)
+
+        for widget in [self.snippets, self.editor, self.pdf, self.settings]:
             if hasattr(widget, "apply_theme"):
                 widget.apply_theme(self.theme)
 
@@ -229,27 +271,53 @@ class MainWindow(QMainWindow):
         self.update_buttons()
 
     def set_accent_color(self, color):
-        self.theme["accent"] = color
+        self.accent_color = color
+        self.apply_theme()
         self.update_buttons()
 
-    # 🔥 NUEVO SISTEMA DE NIVELES
+    # =====================
     def set_font_size(self, level):
+        self.current_font_level = level
+
         sizes = {
-            1: 12,
-            2: 14,
-            3: 16
+            1: self.base_font_size,
+            2: self.base_font_size + 2,
+            3: self.base_font_size + 4
         }
 
-        size = sizes.get(level, 12)
+        size = sizes.get(level, self.base_font_size)
 
         app = QApplication.instance()
         font = app.font()
         font.setPointSize(size)
         app.setFont(font)
 
-        self.repaint()
-        for widget in [self.snippets, self.editor, self.pdf]:
+        self.apply_theme()
+
+        for widget in [self.snippets, self.editor, self.pdf, self.settings]:
             widget.update()
+            widget.repaint()
+
+        if hasattr(self.settings, "update_font_buttons"):
+            self.settings.update_font_buttons(level)
+
+    # =====================
+    def get_icon(self, path, color):
+        if not os.path.exists(path):
+            return QIcon()
+
+        renderer = QSvgRenderer(path)
+        pixmap = QPixmap(24, 24)
+        pixmap.fill(Qt.transparent)
+
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+
+        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        painter.fillRect(pixmap.rect(), QColor(color))
+        painter.end()
+
+        return QIcon(pixmap)
 
     # =====================
     def toggle_maximize(self):
@@ -278,7 +346,7 @@ class MainWindow(QMainWindow):
 
     # =====================
     def update_buttons(self):
-        icon_color_inactive = "#000000" if self.theme_mode == "light" else self.theme["text_muted"]
+        icon_color_inactive = self.theme["text_muted"]
 
         for btn, idx, path in [
             (self.btn_snippets, 0, self.icon_snippets_path),
